@@ -1,0 +1,20 @@
+{
+  "name": "particle-circle",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "watchify index.js -o bundle.js  -t [ babelify --presets [ es2015 ] ] | live-server"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "babelify": "^7.3.0",
+    "browserify": "^14.4.0",
+    "live-server": "^1.2.0",
+    "watchify": "^3.9.0"
+  },
+  "dependencies": {
+    "n3d-threejs": "^76.0.0",
+    "noisejs": "^2.1.0"
+  }
+}
