@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "watch": "watchify index.js -v -t babelify -d -o bundle.js | live-server"
+    "watch": "watchify src/index.js -v -t babelify -d -o bundle.js | live-server"
   },
   "browserify": {
     "transform": [
@@ -17,7 +17,7 @@
         }
       ]
     ]
-  },  
+  },
   "author": "",
   "license": "ISC",
   "devDependencies": {
@@ -26,5 +26,10 @@
     "browserify": "^14.4.0",
     "live-server": "^1.2.0",
     "watchify": "^3.9.0"
+  },
+  "dependencies": {
+    "three": "^0.87.1",
+    "three-glslify": "^2.0.2",
+    "three-orbit-controls": "^82.1.0"
   }
 }
