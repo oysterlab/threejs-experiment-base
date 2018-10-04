@@ -1,74 +1,86 @@
-const THREE = require('three')
-const OrbitControls = require('three-orbit-controls')(THREE)
-const GPUComputationRenderer = require('../lib/GPUComputationRenderer')(THREE)
-const glsl = require('glslify')
-const path = require('path');
-
+document.body.style.padding = '0px'
+document.body.style.maring = '0px'
 const WIDTH = window.innerWidth
 const HEIGHT = window.innerHeight
-const renderer = new THREE.WebGLRenderer()
-renderer.setSize(WIDTH, HEIGHT)
-document.body.appendChild(renderer.domElement)
+const canvas = document.createElement('canvas')
+canvas.width = WIDTH
+canvas.height = HEIGHT
+document.body.appendChild(canvas)
 
-const scene = new THREE.Scene()
-const camera = new THREE.PerspectiveCamera(75, WIDTH/HEIGHT, 1, 10000)
-camera.position.z = 2000;
+const context = canvas.getContext('2d')
 
-const boxCount = Math.pow(2, 18)
-const computeWidth = Math.sqrt(boxCount)
-const computeHeight = computeWidth
+const DIGONAL_SIZE = 20  // must be odd number
 
-const boxIndexes = new Float32Array(boxCount * 2)
-for(let y = 0; y < computeHeight; y++) {
-  for(let x = 0; x < computeWidth; x++) {
-    const i = (y * computeWidth + x) * 2
+const w = (WIDTH > HEIGHT) ? HEIGHT / parseInt((DIGONAL_SIZE * 1.6)) : WIDTH / parseInt((DIGONAL_SIZE * 1.6))
+const h = (WIDTH > HEIGHT) ? HEIGHT / parseInt((DIGONAL_SIZE * 1.6)) : WIDTH / parseInt((DIGONAL_SIZE * 1.6))
+const BLOCK_MAX_HEIGHT = h * 3
+const p1 = [0. * w, -0.5 * h]
+const p2 = [1. * w, 0. * h]
+const p3 = [0. * w, 0.5 * h]
+const p4 = [-1. * w, 0. * h]
 
-    boxIndexes[i + 0] = x / computeWidth
-    boxIndexes[i + 1] = y / computeHeight
+const blocks = []
+const countMap = {}
+for (let r = 0; r <= DIGONAL_SIZE; r++) {
+  const t = Math.sin(r / DIGONAL_SIZE * Math.PI).toFixed(2)
+  let colCount = countMap[t]
+
+  if (!colCount) {
+    const countArr = Object.keys(countMap).map((key) => countMap[key])
+    countMap[t] = (countArr.length == 0) ? 1 : Math.max.apply(null, countArr) + 1
+    colCount = countMap[t]
+  }
+
+  let sc = w * 0.5 -(colCount * w)
+  for (let c = 0; c < colCount; c++) {
+    blocks.push({
+      x: sc + c * w * 2, y: r * h * 0.5
+    })
   }
 }
 
-const geometry = new THREE.InstancedBufferGeometry()
-geometry.copy(new THREE.BoxBufferGeometry(2, 2, 2))
+const r = parseInt(Math.random() * 255)
+const g = parseInt(Math.random() * 255)
+const b = parseInt(Math.random() * 255)
 
-geometry.addAttribute('boxIndex', new THREE.InstancedBufferAttribute(boxIndexes, 2, 1))
+const render = (t) => {
+  context.clearRect(0, 0, WIDTH, HEIGHT)
 
-const gpuCompute = new GPUComputationRenderer(computeWidth, computeHeight, renderer)
-const dtPosition = gpuCompute.createTexture()
+  context.save()
+  context.translate(WIDTH * 0.5 + w * 0.25, HEIGHT * 0.5 - DIGONAL_SIZE * 0.25 * h)
 
-for(let i = 0; i < dtPosition.image.data.length; i+=4) {
-  dtPosition.image.data[i + 0] = (Math.random() - 0.5) * 600
-  dtPosition.image.data[i + 1] = (Math.random() - 0.5) * 600
-  dtPosition.image.data[i + 2] = (Math.random()) * 600
-  dtPosition.image.data[i + 3] = 1
-}
+  blocks.forEach(({x, y}, i) => {
+    const h = -(BLOCK_MAX_HEIGHT * 0.3) - (BLOCK_MAX_HEIGHT * 0.7) * Math.abs(Math.sin(0.8 * Math.PI * i / blocks.length + t * 0.004))
 
-const dtPositionLogic = glsl(path.resolve(__dirname, './shaders/dtPosition.glsl'))
-const positionVariable = gpuCompute.addVariable("positionTexture", dtPositionLogic, dtPosition)
-gpuCompute.setVariableDependencies(positionVariable, [positionVariable])
+    context.beginPath()
+    context.moveTo(x + p1[0], y + p1[1] + h)
+    context.lineTo(x + p2[0], y + p2[1] + h)
+    context.lineTo(x + p3[0], y + p3[1] + h)
+    context.lineTo(x + p4[0], y + p4[1] + h)
+    context.closePath()
+    context.fillStyle = `rgb(${r}, ${g}, ${b})`
+    context.fill()
 
-gpuCompute.init()
+    context.beginPath()
+    context.moveTo(x + p3[0], y + p3[1] + h)
+    context.lineTo(x + p4[0], y + p4[1] + h)
+    context.lineTo(x + p4[0], y + p4[1])
+    context.lineTo(x + p3[0], y + p3[1])
+    context.closePath()
+    context.fillStyle = `rgb(${r - 10}, ${g - 10}, ${b - 10})`
+    context.fill()
 
-var material = new THREE.ShaderMaterial({
-  vertexShader: glsl(path.resolve(__dirname, './shaders/vertex.glsl')),
-  fragmentShader: glsl(path.resolve(__dirname, './shaders/fragment.glsl')),
-  uniforms: {
-    positionTexture: {
-      type: 't', value: null
-    }
-  }
-});
-
-const cube = new THREE.Mesh(geometry, material );
-scene.add(cube)
-
-function render(t) {
-  gpuCompute.compute()
-  cube.material.uniforms.positionTexture.value = gpuCompute.getCurrentRenderTarget(positionVariable).texture
-  renderer.render(scene, camera)
-  requestAnimationFrame(render)
+    context.beginPath()
+    context.moveTo(x + p2[0], y + p2[1] + h)
+    context.lineTo(x + p2[0], y + p2[1])
+    context.lineTo(x + p3[0], y + p3[1])
+    context.lineTo(x + p3[0], y + p3[1] + h)
+    context.closePath()
+    context.fillStyle = `rgb(${r + 10}, ${g + 10}, ${b + 10})`
+    context.fill()
+  })
+  context.restore()
+  requestAnimationFrame(render)  
 }
 
 requestAnimationFrame(render)
-
-const control = new OrbitControls(camera, renderer.domElement)
